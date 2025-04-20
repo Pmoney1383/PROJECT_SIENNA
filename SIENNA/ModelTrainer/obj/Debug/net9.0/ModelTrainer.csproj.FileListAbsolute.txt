@@ -1,0 +1,15 @@
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\bin\Debug\net9.0\ModelTrainer.exe
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\bin\Debug\net9.0\ModelTrainer.deps.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\bin\Debug\net9.0\ModelTrainer.runtimeconfig.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\bin\Debug\net9.0\ModelTrainer.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\bin\Debug\net9.0\ModelTrainer.pdb
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.AssemblyInfoInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.AssemblyInfo.cs
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.csproj.CoreCompileInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.sourcelink.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\refint\ModelTrainer.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.pdb
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ModelTrainer.genruntimeconfig.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net9.0\ref\ModelTrainer.dll
