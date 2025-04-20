@@ -23,7 +23,7 @@ class Trainer
         List<List<int>> inputs = new();
         List<List<int>> outputs = new();
 
-        int lineCount = 0;
+        
 int rawCount = 0;    // total lines attempted
 int validCount = 0;  // successfully added to training data
 int skipped = 0;
