@@ -1,0 +1,6 @@
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.csproj.AssemblyReference.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.AssemblyInfoInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.AssemblyInfo.cs
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.csproj.CoreCompileInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\ModelTrainer\obj\Debug\net7.0\ModelTrainer.sourcelink.json

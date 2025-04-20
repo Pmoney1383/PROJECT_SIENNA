@@ -1,15 +1,22 @@
 {
   "version": 2,
-  "dgSpecHash": "/CV9YcnPIcg=",
+  "dgSpecHash": "NTWyHU+iOlg=",
   "success": true,
   "projectFilePath": "C:\\Users\\amirp\\Documents\\GitHub\\PROJECT_SIENNA\\SIENNA\\ModelTrainer\\ModelTrainer.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\amirp\\.nuget\\packages\\google.protobuf\\3.21.9\\google.protobuf.3.21.9.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\losttech.python.runtime\\3.0.4\\losttech.python.runtime.3.0.4.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\microsoft.netcore.platforms\\2.0.0\\microsoft.netcore.platforms.2.0.0.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\python.runtime\\2.7.9\\python.runtime.2.7.9.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\sharpziplib\\1.4.0\\sharpziplib.1.4.0.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\skiasharp\\2.88.6\\skiasharp.2.88.6.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\skiasharp.nativeassets.macos\\2.88.6\\skiasharp.nativeassets.macos.2.88.6.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\skiasharp.nativeassets.win32\\2.88.6\\skiasharp.nativeassets.win32.2.88.6.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\system.memory\\4.5.5\\system.memory.4.5.5.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\system.reflection.emit\\4.7.0\\system.reflection.emit.4.7.0.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\system.security.accesscontrol\\4.4.0\\system.security.accesscontrol.4.4.0.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\system.security.permissions\\4.4.0\\system.security.permissions.4.4.0.nupkg.sha512",
+    "C:\\Users\\amirp\\.nuget\\packages\\system.security.principal.windows\\4.4.0\\system.security.principal.windows.4.4.0.nupkg.sha512",
     "C:\\Users\\amirp\\.nuget\\packages\\torchsharp\\0.105.0\\torchsharp.0.105.0.nupkg.sha512"
   ],
   "logs": []

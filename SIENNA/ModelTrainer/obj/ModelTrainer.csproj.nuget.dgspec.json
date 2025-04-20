@@ -46,6 +46,14 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "LostTech.Python.Runtime": {
+              "target": "Package",
+              "version": "[3.0.4, )"
+            },
+            "Python.Runtime": {
+              "target": "Package",
+              "version": "[2.7.9, )"
+            },
             "TorchSharp": {
               "target": "Package",
               "version": "[0.105.0, )"
