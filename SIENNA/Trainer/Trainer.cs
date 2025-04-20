@@ -73,6 +73,26 @@ foreach (var line in rawLines)
 
         var paddedInputs = PadSequences(inputs, maxInputLength);
         var paddedOutputs = PadSequences(outputs, maxOutputLength);
+        
+        string prepFolder = "_PREP_DATA";
+        Directory.CreateDirectory(prepFolder); // create if not exists
+
+        string inputFilePath = Path.Combine(prepFolder, "padded_inputs.txt");
+        string outputFilePath = Path.Combine(prepFolder, "padded_outputs.txt");
+
+        // Append if files already exist
+        using (StreamWriter inputWriter = new StreamWriter(inputFilePath, append: true))
+        using (StreamWriter outputWriter = new StreamWriter(outputFilePath, append: true))
+        {
+            for (int i = 0; i < paddedInputs.Count; i++)
+            {
+                string inputLine = string.Join(" ", paddedInputs[i]);
+                string outputLine = string.Join(" ", paddedOutputs[i]);
+
+                inputWriter.WriteLine(inputLine);
+                outputWriter.WriteLine(outputLine);
+            }
+        }
 
         Console.WriteLine($"📏 Max input length: {maxInputLength}, Max output length: {maxOutputLength}");
         Console.WriteLine($"\n🚫 Skipped {skipped} malformed lines");
