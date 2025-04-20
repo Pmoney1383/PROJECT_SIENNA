@@ -21,17 +21,49 @@ class Trainer
         List<List<int>> inputs = new();
         List<List<int>> outputs = new();
 
-        foreach (var line in File.ReadLines(tokenizedPath).Take(1000)) // Limit to 1000 for now
-        {
-            var parts = line.Split("|||");
-            if (parts.Length != 2) continue;
+        int lineCount = 0;
+int rawCount = 0;    // total lines attempted
+int validCount = 0;  // successfully added to training data
+int skipped = 0;
+int tokenCount = 0;
 
-            var inputTokens = parts[0].Trim().Split(' ').Select(int.Parse).ToList();
-            var outputTokens = parts[1].Trim().Split(' ').Select(int.Parse).ToList();
+var rawLines = File.ReadLines(tokenizedPath).Take(1000).ToList();
+int totalLines = rawLines.Count;
 
-            inputs.Add(inputTokens);
-            outputs.Add(outputTokens);
-        }
+foreach (var line in rawLines)
+{
+    rawCount++;
+
+    var parts = line.Split("|||");
+    if (parts.Length != 2) { skipped++; continue; }
+
+    var inputTokens = parts[0].Trim()
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(int.Parse)
+        .ToList();
+
+    var outputTokens = parts[1].Trim()
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(int.Parse)
+        .ToList();
+
+    if (inputTokens.Count == 0 || outputTokens.Count == 0)
+    {
+        skipped++;
+        continue;
+    }
+
+    inputs.Add(inputTokens);
+    outputs.Add(outputTokens);
+
+    validCount++;
+    tokenCount += inputTokens.Count + outputTokens.Count;
+
+    double percent = (rawCount / (double)totalLines) * 100;
+    Console.Write($"\r📦 Preparing data: {rawCount}/{totalLines} lines | {tokenCount} tokens | {percent:F2}%");
+}
+
+
 
         Console.WriteLine($"✅ Loaded {inputs.Count} pairs from tokenized data");
 
@@ -43,7 +75,7 @@ class Trainer
         var paddedOutputs = PadSequences(outputs, maxOutputLength);
 
         Console.WriteLine($"📏 Max input length: {maxInputLength}, Max output length: {maxOutputLength}");
-
+        Console.WriteLine($"\n🚫 Skipped {skipped} malformed lines");
         // Pause here – model coming next!
         Console.WriteLine("🚧 Data prep complete – ready for model init!");
     }
