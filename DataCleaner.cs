@@ -7,8 +7,8 @@ class DataCleaner
 {
     static void Main(string[] args)
     {
-        string inputPath = "_data/raw_dialogue.txt";
-        string outputPath = "_data/conversation_pairs.txt";
+        string inputPath = "_DATA/raw_dialogue.txt";
+        string outputPath = "_CLEAN_DATA/conversation_pairs.txt";
 
         // List to store (lineID, utterance)
         List<(int LineID, string Utterance)> lines = new List<(int, string)>();
