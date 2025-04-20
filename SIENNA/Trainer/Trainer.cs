@@ -7,6 +7,8 @@ class Trainer
 {
     static void Main(string[] args)
     {
+         string inputPath = "_PREP_DATA/padded_inputs.txt";
+        string outputPath = "_PREP_DATA/padded_outputs.txt";
         string tokenizedPath = "_CLEAN_DATA/tokenized_movie_lines_clean.txt";
         string vocabPath = "_VOCAB/vocab.txt";
 
@@ -98,6 +100,7 @@ foreach (var line in rawLines)
         Console.WriteLine($"\n🚫 Skipped {skipped} malformed lines");
         // Pause here – model coming next!
         Console.WriteLine("🚧 Data prep complete – ready for model init!");
+        CheckPaddedData.PrintSanityCheck(inputPath, outputPath);
     }
 
     static List<List<int>> PadSequences(List<List<int>> sequences, int maxLength)
