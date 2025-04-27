@@ -100,6 +100,7 @@ foreach (var line in rawLines)
         Console.WriteLine($"\n🚫 Skipped {skipped} malformed lines");
         // Pause here – model coming next!
         Console.WriteLine("🚧 Data prep complete – ready for model init!");
+
         CheckPaddedData.PrintSanityCheck(inputPath, outputPath);
     }
 

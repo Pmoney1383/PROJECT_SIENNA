@@ -1,0 +1,15 @@
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\bin\Debug\net9.0\Chatbot.exe
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\bin\Debug\net9.0\Chatbot.deps.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\bin\Debug\net9.0\Chatbot.runtimeconfig.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\bin\Debug\net9.0\Chatbot.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\bin\Debug\net9.0\Chatbot.pdb
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.AssemblyInfoInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.AssemblyInfo.cs
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.csproj.CoreCompileInputs.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.sourcelink.json
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\refint\Chatbot.dll
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.pdb
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\Chatbot.genruntimeconfig.cache
+C:\Users\amirp\Documents\GitHub\PROJECT_SIENNA\SIENNA\Chatbot\obj\Debug\net9.0\ref\Chatbot.dll

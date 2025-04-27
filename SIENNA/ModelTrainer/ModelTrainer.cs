@@ -6,10 +6,10 @@ using Python.Runtime;
 class ModelTrainer
 {
     static int vocabSize; // update if needed
-    static int embeddingDim = 64;
-    static int hiddenDim = 128;
-    static int batchSize = 32;
-    static int epochs = 10;
+    static int embeddingDim = 16;
+    static int hiddenDim = 32;
+    static int batchSize = 8;
+    static int epochs = 1;
     static double learningRate = 0.01;
 
     static double[,] inputEmbedding;
@@ -22,12 +22,13 @@ class ModelTrainer
 
     static void Main()
     {
+        
         Console.WriteLine("🔄 Loading padded training data...");
         LoadData();
 
         Console.WriteLine("⚙️ Initializing model parameters...");
         InitializeParameters();
-
+            
         Console.WriteLine("🚀 Starting training...");
 for (int epoch = 1; epoch <= epochs; epoch++)
 {
@@ -57,28 +58,28 @@ for (int epoch = 1; epoch <= epochs; epoch++)
 
         Console.WriteLine("🎉 Training complete!");
         SaveAllWeights();
+        Console.WriteLine("\n🧪 Enter test input (token IDs separated by space): ");
+        string input = Console.ReadLine();
+        int[] inputTokens = input.Split().Select(int.Parse).ToArray();
+
+        List<int> response = Predict(inputTokens);
+        Console.WriteLine("🤖 Model response:");
+        Console.WriteLine(string.Join(" ", response));
 
     }
 
     static void LoadData()
 {
-    int maxToken = 0;
-
+    // 1. Load all padded sequences
     foreach (var line in File.ReadAllLines("_PREP_DATA/padded_inputs.txt"))
-    {
-        var tokens = Array.ConvertAll(line.Split(), int.Parse);
-        inputSequences.Add(tokens);
-        maxToken = Math.Max(maxToken, tokens.Max());
-    }
+        inputSequences.Add(Array.ConvertAll(line.Split(), int.Parse));
 
     foreach (var line in File.ReadAllLines("_PREP_DATA/padded_outputs.txt"))
-    {
-        var tokens = Array.ConvertAll(line.Split(), int.Parse);
-        outputSequences.Add(tokens);
-        maxToken = Math.Max(maxToken, tokens.Max());
-    }
+        outputSequences.Add(Array.ConvertAll(line.Split(), int.Parse));
 
-    vocabSize = maxToken + 1; // +1 for zero-index padding token
+    // 2. Set vocab size manually by vocab file size
+    vocabSize = File.ReadLines("_VOCAB/vocab.txt").Count(); // 🔥
+    Console.WriteLine($"✅ Vocab size loaded from vocab.txt: {vocabSize}");
 }
 
 
@@ -134,55 +135,123 @@ for (int epoch = 1; epoch <= epochs; epoch++)
 
         List<int[][]> inputBatches = new();
         List<int[][]> outputBatches = new();
-
         for (int i = 0; i < inputs.Count; i += batchSize)
         {
-           inputBatches.AddRange(SplitIntoChunks(inputs, batchSize));
-           outputBatches.AddRange(SplitIntoChunks(targets, batchSize));
+            inputBatches.Add(inputs.GetRange(i, Math.Min(batchSize, inputs.Count - i)).ToArray());
+            outputBatches.Add(targets.GetRange(i, Math.Min(batchSize, targets.Count - i)).ToArray());
         }
 
         return (inputBatches, outputBatches);
     }
 
-    static double TrainStep(int[][] inputs, int[][] targets)
+   static double TrainStep(int[][] inputs, int[][] targets)
 {
     double totalLoss = 0;
 
-    for (int batchIndex = 0; batchIndex < inputs.Length; batchIndex++)
+    // Initialize gradient accumulators
+    double[,] dRnnWeights = new double[hiddenDim, embeddingDim + hiddenDim];
+    double[,] dOutputWeights = new double[vocabSize, hiddenDim];
+
+    for (int b = 0; b < inputs.Length; b++)
     {
-        int[] inputSeq = inputs[batchIndex];
-        int[] targetSeq = targets[batchIndex];
+        int[] inputSeq = inputs[b];
+        int[] targetSeq = targets[b];
 
-        double[,] hidden = new double[inputSeq.Length, hiddenDim];
+        int T = inputSeq.Length;
+        double[][] hiddenStates = new double[T + 1][]; // include h0
+        hiddenStates[0] = new double[hiddenDim]; // initial h0 = zeros
 
-        // Initial hidden state = zeros
-        double[] prevHidden = new double[hiddenDim];
+        double[][] logitsPerTimestep = new double[T][];
+        double[][] probsPerTimestep = new double[T][];
 
-        for (int t = 0; t < inputSeq.Length; t++)
+        // FORWARD PASS 🔽
+        for (int t = 0; t < T; t++)
         {
-            int token = inputSeq[t];
-            double[] x = GetRow(inputEmbedding, token);
-            double[] combined = Concatenate(x, prevHidden);
+            double[] x = GetRow(inputEmbedding, inputSeq[t]);
+            double[] combined = Concatenate(x, hiddenStates[t]); // [embedding + hidden]
             double[] h = Tanh(MatVecMul(rnnWeights, combined));
 
-            for (int j = 0; j < hiddenDim; j++)
-                hidden[t, j] = h[j];
+            hiddenStates[t + 1] = h;
 
-            prevHidden = h;
+            double[] logits = MatVecMul(outputWeights, h);
+            double[] probs = Softmax(logits);
+
+            logitsPerTimestep[t] = logits;
+            probsPerTimestep[t] = probs;
+
+            int target = targetSeq[t];
+            totalLoss += -Math.Log(probs[target] + 1e-9);
         }
 
-        // Compute logits from final hidden state
-        double[] logits = MatVecMul(outputWeights, prevHidden);
-        double[] probs = Softmax(logits);
+        // BACKWARD PASS 🔼
+        double[] dhNext = new double[hiddenDim]; // gradient from next timestep
 
-        int targetToken = targetSeq.Last(); // predict last token only for now
-        double loss = -Math.Log(probs[targetToken] + 1e-9); // cross-entropy loss
+        for (int t = T - 1; t >= 0; t--)
+        {
+            int target = targetSeq[t];
+            double[] probs = probsPerTimestep[t];
 
-        totalLoss += loss;
+            // ∂L/∂logits
+            double[] dLogits = new double[vocabSize];
+            for (int i = 0; i < vocabSize; i++)
+                dLogits[i] = probs[i];
+            dLogits[target] -= 1; // derivative of softmax + cross-entropy
+
+            // ∂L/∂outputWeights += dLogits ⊗ h^T
+            double[] h = hiddenStates[t + 1];
+            for (int i = 0; i < vocabSize; i++)
+                for (int j = 0; j < hiddenDim; j++)
+                    dOutputWeights[i, j] += dLogits[i] * h[j];
+
+            // ∂L/∂h
+            double[] dh = new double[hiddenDim];
+            for (int i = 0; i < vocabSize; i++)
+                for (int j = 0; j < hiddenDim; j++)
+                    dh[j] += dLogits[i] * outputWeights[i, j];
+
+            for (int j = 0; j < hiddenDim; j++)
+                dh[j] += dhNext[j]; // add gradient from future time step
+
+            // tanh derivative
+            for (int j = 0; j < hiddenDim; j++)
+                dh[j] *= (1 - h[j] * h[j]);
+
+            // ∂L/∂rnnWeights
+            double[] prevH = hiddenStates[t];
+            double[] x = GetRow(inputEmbedding, inputSeq[t]);
+            double[] combined = Concatenate(x, prevH);
+
+            for (int i = 0; i < hiddenDim; i++)
+                for (int j = 0; j < combined.Length; j++)
+                    dRnnWeights[i, j] += dh[i] * combined[j];
+
+            // ∂L/∂prevHidden (for next timestep backprop)
+            dhNext = new double[hiddenDim];
+            for (int j = 0; j < hiddenDim; j++)
+                for (int i = 0; i < hiddenDim; i++)
+                    dhNext[j] += dh[i] * rnnWeights[i, embeddingDim + j];
+        }
     }
 
-    return totalLoss;
+
+    // Gradient Clipping (before weight updates)
+    ClipGradients(dRnnWeights, 1.0);
+    ClipGradients(dOutputWeights, 1.0);
+
+    // Apply SGD updates ✍️
+    for (int i = 0; i < rnnWeights.GetLength(0); i++)
+        for (int j = 0; j < rnnWeights.GetLength(1); j++)
+            rnnWeights[i, j] -= learningRate * dRnnWeights[i, j];
+
+    for (int i = 0; i < outputWeights.GetLength(0); i++)
+        for (int j = 0; j < outputWeights.GetLength(1); j++)
+            outputWeights[i, j] -= learningRate * dOutputWeights[i, j];
+
+    int totalTokens = inputs.Sum(seq => seq.Length);
+    return totalLoss / totalTokens;
+
 }
+
 static double[] MatVecMul(double[,] matrix, double[] vector)
 {
     int rows = matrix.GetLength(0);
@@ -233,7 +302,10 @@ static double[] Softmax(double[] logits)
 }
 static void SaveMatrix(string filePath, double[,] matrix)
 {
-    using (StreamWriter writer = new StreamWriter(filePath))
+    // Create directory if it doesn't exist
+    Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+    using (StreamWriter writer = new StreamWriter(filePath, false)) // overwrite mode
     {
         int rows = matrix.GetLength(0);
         int cols = matrix.GetLength(1);
@@ -249,6 +321,13 @@ static void SaveMatrix(string filePath, double[,] matrix)
         }
     }
 }
+static void ClipGradients(double[,] gradients, double clipValue)
+{
+    for (int i = 0; i < gradients.GetLength(0); i++)
+        for (int j = 0; j < gradients.GetLength(1); j++)
+            gradients[i, j] = Math.Max(Math.Min(gradients[i, j], clipValue), -clipValue);
+}
+
 static void SaveAllWeights()
 {
     string folder = "_MODEL_WEIGHTS";
@@ -262,4 +341,65 @@ static void SaveAllWeights()
     Console.WriteLine("💾 All weights saved to _MODEL_WEIGHTS folder.");
 }
 
+
+
+static int  maxPredictionLength = 30; // max tokens to generate
+
+static List<int> Predict(int[] inputTokens)
+{
+    List<int> generated = new();
+
+    double[] hidden = new double[hiddenDim];
+    
+    // Feed the input tokens through the RNN to get the final hidden state
+    foreach (int token in inputTokens)
+    {
+        double[] x = GetRow(inputEmbedding, token);
+        double[] combined = Concatenate(x, hidden);
+        hidden = Tanh(MatVecMul(rnnWeights, combined));
+    }
+
+    int currentToken = inputTokens.Last();
+
+    for (int step = 0; step < maxPredictionLength; step++)
+    {
+        // Embed the current token
+        double[] x = GetRow(outputEmbedding, currentToken);
+        double[] combined = Concatenate(x, hidden);
+        hidden = Tanh(MatVecMul(rnnWeights, combined));
+
+        // Get next token probabilities
+        double[] logits = MatVecMul(outputWeights, hidden);
+        double[] probs = Softmax(logits);
+
+        // Greedy decode: pick the highest-probability token
+        int nextToken = ArgMax(probs);
+
+        generated.Add(nextToken);
+
+        currentToken = nextToken;
+
+        // Optional: break on some special token like <eos>
+        // if (nextToken == EOS_TOKEN_ID) break;
+    }
+
+    return generated;
+}
+
+static int ArgMax(double[] array)
+{
+    int maxIndex = 0;
+    double maxVal = array[0];
+
+    for (int i = 1; i < array.Length; i++)
+    {
+        if (array[i] > maxVal)
+        {
+            maxVal = array[i];
+            maxIndex = i;
+        }
+    }
+
+    return maxIndex;
+}
 }
