@@ -2,14 +2,19 @@
 using System.Collections.Generic;
 using System.IO;
 using Python.Runtime;
+using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
 
 class ModelTrainer
 {
     static int vocabSize; // update if needed
-    static int embeddingDim = 16;
-    static int hiddenDim = 32;
-    static int batchSize = 8;
-    static int epochs = 1;
+    static int embeddingDim = 64;
+    static int hiddenDim = 128;
+    static int batchSize = 32;
+    static int epochs = 5;
     static double learningRate = 0.01;
 
     static double[,] inputEmbedding;
@@ -144,101 +149,154 @@ for (int epoch = 1; epoch <= epochs; epoch++)
         return (inputBatches, outputBatches);
     }
 
-   static double TrainStep(int[][] inputs, int[][] targets)
+ static double TrainStep(int[][] inputs, int[][] targets)
 {
+    var stopwatchTotal = Stopwatch.StartNew();
+
+    int B = inputs.Length;
+    int T = inputs[0].Length;
+    int correctCount = 0;
+    int totalCount = 0;
+
+    double forwardTime = 0;
+    double backwardTime = 0;
+    double updateTime = 0;
     double totalLoss = 0;
 
     // Initialize gradient accumulators
     double[,] dRnnWeights = new double[hiddenDim, embeddingDim + hiddenDim];
     double[,] dOutputWeights = new double[vocabSize, hiddenDim];
 
-    for (int b = 0; b < inputs.Length; b++)
+    // Hidden states per sequence
+    double[][][] hiddenStates = new double[B][][];
+    for (int b = 0; b < B; b++)
     {
-        int[] inputSeq = inputs[b];
-        int[] targetSeq = targets[b];
+        hiddenStates[b] = new double[T + 1][];
+        hiddenStates[b][0] = new double[hiddenDim];
+    }
 
-        int T = inputSeq.Length;
-        double[][] hiddenStates = new double[T + 1][]; // include h0
-        hiddenStates[0] = new double[hiddenDim]; // initial h0 = zeros
+    double[][][] logitsPerSeq = new double[B][][];
+    double[][][] probsPerSeq = new double[B][][];
 
-        double[][] logitsPerTimestep = new double[T][];
-        double[][] probsPerTimestep = new double[T][];
+    // 🔽 FORWARD PASS (parallel per sequence)
+    var swForward = Stopwatch.StartNew();
+    Parallel.For(0, B, new ParallelOptions { MaxDegreeOfParallelism = 12 }, b =>
+    {
+        double[][] hidden = hiddenStates[b];
+        double[][] logitsPerTime = new double[T][];
+        double[][] probsPerTime = new double[T][];
 
-        // FORWARD PASS 🔽
         for (int t = 0; t < T; t++)
         {
-            double[] x = GetRow(inputEmbedding, inputSeq[t]);
-            double[] combined = Concatenate(x, hiddenStates[t]); // [embedding + hidden]
+            double[] x = GetRow(inputEmbedding, inputs[b][t]);
+            double[] combined = Concatenate(x, hidden[t]);
             double[] h = Tanh(MatVecMul(rnnWeights, combined));
-
-            hiddenStates[t + 1] = h;
+            hidden[t + 1] = h;
 
             double[] logits = MatVecMul(outputWeights, h);
             double[] probs = Softmax(logits);
 
-            logitsPerTimestep[t] = logits;
-            probsPerTimestep[t] = probs;
+            logitsPerTime[t] = logits;
+            probsPerTime[t] = probs;
 
-            int target = targetSeq[t];
-            totalLoss += -Math.Log(probs[target] + 1e-9);
+            double loss = -Math.Log(probs[targets[b][t]] + 1e-9);
+            if (ArgMax(probs) == targets[b][t])
+            {
+                Interlocked.Increment(ref correctCount);
+            }
+            Interlocked.Increment(ref totalCount);
+
+
+            lock (typeof(ModelTrainer))
+            {
+                totalLoss += loss;
+            }
         }
 
-        // BACKWARD PASS 🔼
-        double[] dhNext = new double[hiddenDim]; // gradient from next timestep
+        logitsPerSeq[b] = logitsPerTime;
+        probsPerSeq[b] = probsPerTime;
+    });
+    swForward.Stop();
+    forwardTime = swForward.Elapsed.TotalMilliseconds;
+
+    // 🔼 BACKWARD PASS (parallel per sequence)
+    var swBackward = Stopwatch.StartNew();
+    Parallel.For(0, B, new ParallelOptions { MaxDegreeOfParallelism = 12 }, () => (
+        new double[hiddenDim, embeddingDim + hiddenDim],
+        new double[vocabSize, hiddenDim]
+    ),
+    (b, _, localGrads) =>
+    {
+        double[,] localRnnGrad = localGrads.Item1;
+        double[,] localOutGrad = localGrads.Item2;
+
+        double[][] hidden = hiddenStates[b];
+        double[] dhNext = new double[hiddenDim];
 
         for (int t = T - 1; t >= 0; t--)
         {
-            int target = targetSeq[t];
-            double[] probs = probsPerTimestep[t];
+            int target = targets[b][t];
+            double[] probs = probsPerSeq[b][t];
 
-            // ∂L/∂logits
             double[] dLogits = new double[vocabSize];
-            for (int i = 0; i < vocabSize; i++)
-                dLogits[i] = probs[i];
-            dLogits[target] -= 1; // derivative of softmax + cross-entropy
+            for (int i = 0; i < vocabSize; i++) dLogits[i] = probs[i];
+            dLogits[target] -= 1;
 
-            // ∂L/∂outputWeights += dLogits ⊗ h^T
-            double[] h = hiddenStates[t + 1];
+            double[] h = hidden[t + 1];
             for (int i = 0; i < vocabSize; i++)
                 for (int j = 0; j < hiddenDim; j++)
-                    dOutputWeights[i, j] += dLogits[i] * h[j];
+                    localOutGrad[i, j] += dLogits[i] * h[j];
 
-            // ∂L/∂h
             double[] dh = new double[hiddenDim];
             for (int i = 0; i < vocabSize; i++)
                 for (int j = 0; j < hiddenDim; j++)
                     dh[j] += dLogits[i] * outputWeights[i, j];
 
-            for (int j = 0; j < hiddenDim; j++)
-                dh[j] += dhNext[j]; // add gradient from future time step
+            for (int j = 0; j < hiddenDim; j++) dh[j] += dhNext[j];
+            for (int j = 0; j < hiddenDim; j++) dh[j] *= (1 - h[j] * h[j]);
 
-            // tanh derivative
-            for (int j = 0; j < hiddenDim; j++)
-                dh[j] *= (1 - h[j] * h[j]);
-
-            // ∂L/∂rnnWeights
-            double[] prevH = hiddenStates[t];
-            double[] x = GetRow(inputEmbedding, inputSeq[t]);
+            double[] prevH = hidden[t];
+            double[] x = GetRow(inputEmbedding, inputs[b][t]);
             double[] combined = Concatenate(x, prevH);
 
             for (int i = 0; i < hiddenDim; i++)
                 for (int j = 0; j < combined.Length; j++)
-                    dRnnWeights[i, j] += dh[i] * combined[j];
+                    localRnnGrad[i, j] += dh[i] * combined[j];
 
-            // ∂L/∂prevHidden (for next timestep backprop)
             dhNext = new double[hiddenDim];
             for (int j = 0; j < hiddenDim; j++)
                 for (int i = 0; i < hiddenDim; i++)
                     dhNext[j] += dh[i] * rnnWeights[i, embeddingDim + j];
         }
-    }
 
+        return (localRnnGrad, localOutGrad);
+    },
+    localGrads =>
+    {
+        // Safely combine local gradients into global ones
+        lock (dRnnWeights)
+        {
+            for (int i = 0; i < hiddenDim; i++)
+                for (int j = 0; j < embeddingDim + hiddenDim; j++)
+                    InterlockedAdd(ref dRnnWeights[i, j], localGrads.Item1[i, j]);
 
-    // Gradient Clipping (before weight updates)
+        }
+
+        lock (dOutputWeights)
+        {
+            for (int i = 0; i < vocabSize; i++)
+                for (int j = 0; j < hiddenDim; j++)
+                    dOutputWeights[i, j] += localGrads.Item2[i, j];
+        }
+    });
+    swBackward.Stop();
+    backwardTime = swBackward.Elapsed.TotalMilliseconds;
+
+    // 💥 Apply updates
+    var swUpdate = Stopwatch.StartNew();
     ClipGradients(dRnnWeights, 1.0);
     ClipGradients(dOutputWeights, 1.0);
 
-    // Apply SGD updates ✍️
     for (int i = 0; i < rnnWeights.GetLength(0); i++)
         for (int j = 0; j < rnnWeights.GetLength(1); j++)
             rnnWeights[i, j] -= learningRate * dRnnWeights[i, j];
@@ -246,11 +304,76 @@ for (int epoch = 1; epoch <= epochs; epoch++)
     for (int i = 0; i < outputWeights.GetLength(0); i++)
         for (int j = 0; j < outputWeights.GetLength(1); j++)
             outputWeights[i, j] -= learningRate * dOutputWeights[i, j];
+    swUpdate.Stop();
+    updateTime = swUpdate.Elapsed.TotalMilliseconds;
 
-    int totalTokens = inputs.Sum(seq => seq.Length);
-    return totalLoss / totalTokens;
+    stopwatchTotal.Stop();
+    double totalTime = stopwatchTotal.Elapsed.TotalMilliseconds;
 
+    Console.Write($" \r ⏱️ Batch profiling | Tokens: {T * B} | " +
+              $"Forward: {forwardTime:F2} ms | " +
+              $"Backward: {backwardTime:F2} ms | " +
+              $"Update: {updateTime:F2} ms | " +
+              $"Total: {totalTime:F2} ms       ");
+
+    double accuracy = 100.0 * correctCount / totalCount;
+    Console.WriteLine($" \r | Accuracy: {accuracy:F2}%");
+
+    return totalLoss / (T * B);
 }
+
+static void InterlockedAdd(ref double target, double value)
+{
+    long initialValue, computedValue;
+    do
+    {
+        initialValue = BitConverter.DoubleToInt64Bits(target);
+        double initialDouble = BitConverter.Int64BitsToDouble(initialValue);
+        double newDouble = initialDouble + value;
+        computedValue = BitConverter.DoubleToInt64Bits(newDouble);
+    }
+    while (Interlocked.CompareExchange(
+        ref Unsafe.As<double, long>(ref target),
+        computedValue, initialValue) != initialValue);
+}
+
+
+static double[][] MatMulBatch(double[,] matrix, double[][] batch)
+{
+    int rows = matrix.GetLength(0);      // Output dimension (e.g., hiddenDim or vocabSize)
+    int cols = matrix.GetLength(1);      // Input dimension (embeddingDim + hiddenDim)
+    int batchSize = batch.Length;
+
+    // Preallocate result
+    double[][] result = new double[batchSize][];
+    for (int b = 0; b < batchSize; b++)
+        result[b] = new double[rows];
+
+    // Transpose batch for better memory access
+    double[][] transposedBatch = new double[cols][];
+    for (int i = 0; i < cols; i++)
+        transposedBatch[i] = new double[batchSize];
+
+    for (int b = 0; b < batchSize; b++)
+        for (int j = 0; j < cols; j++)
+            transposedBatch[j][b] = batch[b][j];
+
+    // Perform matrix multiplication
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            double weight = matrix[i, j];
+            double[] transposedCol = transposedBatch[j];
+
+            for (int b = 0; b < batchSize; b++)
+                result[b][i] += weight * transposedCol[b];
+        }
+    }
+
+    return result;
+}
+
 
 static double[] MatVecMul(double[,] matrix, double[] vector)
 {
@@ -268,13 +391,42 @@ static double[] MatVecMul(double[,] matrix, double[] vector)
     return result;
 }
 
-static double[] Tanh(double[] vector)
+static double[] Tanh(double[] input)
 {
-    double[] result = new double[vector.Length];
-    for (int i = 0; i < vector.Length; i++)
-        result[i] = Math.Tanh(vector[i]);
+    int len = input.Length;
+    double[] result = new double[len];
+
+    int simdLength = Vector<double>.Count;
+    int i = 0;
+
+    // SIMD portion
+    for (; i <= len - simdLength; i += simdLength)
+    {
+        var v = new Vector<double>(input, i);
+
+        // Approximate tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+        Vector<double> two = new Vector<double>(2.0);
+        Vector<double> v2x = v * two;
+
+        double[] exp2x = new double[simdLength];
+        for (int j = 0; j < simdLength; j++)
+            exp2x[j] = ExpLookup.FastExp(v2x[j]);
+
+        for (int j = 0; j < simdLength; j++)
+            result[i + j] = (exp2x[j] - 1) / (exp2x[j] + 1);
+    }
+
+    // Scalar tail
+    for (; i < len; i++)
+    {
+        double x2 = 2 * input[i];
+        double exp2x = ExpLookup.FastExp(x2);
+        result[i] = (exp2x - 1) / (exp2x + 1);
+    }
+
     return result;
 }
+
 
 static double[] GetRow(double[,] matrix, int row)
 {
@@ -292,14 +444,51 @@ static double[] Concatenate(double[] a, double[] b)
     b.CopyTo(result, a.Length);
     return result;
 }
+static class ExpLookup
+{
+    static readonly double[] expTable;
+    const double minX = -50.0;
+    const double maxX = 50.0;
+    const int resolution = 10000;
+    const double step = (maxX - minX) / resolution;
+
+    static ExpLookup()
+    {
+        expTable = new double[resolution + 1];
+        for (int i = 0; i <= resolution; i++)
+        {
+            double x = minX + i * step;
+            expTable[i] = Math.Exp(x);
+        }
+    }
+
+    public static double FastExp(double x)
+    {
+        if (x < minX) return 0;
+        if (x > maxX) return Math.Exp(x);
+        int index = (int)((x - minX) / step);
+        return expTable[index];
+    }
+}
 
 static double[] Softmax(double[] logits)
 {
     double maxLogit = logits.Max();
-    double[] exps = logits.Select(x => Math.Exp(x - maxLogit)).ToArray();
-    double sum = exps.Sum();
-    return exps.Select(x => x / sum).ToArray();
+    double[] exps = new double[logits.Length];
+    double sum = 0;
+
+    for (int i = 0; i < logits.Length; i++)
+    {
+        exps[i] = ExpLookup.FastExp(logits[i] - maxLogit);
+        sum += exps[i];
+    }
+
+    for (int i = 0; i < logits.Length; i++)
+        exps[i] /= sum;
+
+    return exps;
 }
+
 static void SaveMatrix(string filePath, double[,] matrix)
 {
     // Create directory if it doesn't exist
@@ -323,10 +512,20 @@ static void SaveMatrix(string filePath, double[,] matrix)
 }
 static void ClipGradients(double[,] gradients, double clipValue)
 {
-    for (int i = 0; i < gradients.GetLength(0); i++)
-        for (int j = 0; j < gradients.GetLength(1); j++)
-            gradients[i, j] = Math.Max(Math.Min(gradients[i, j], clipValue), -clipValue);
+    int rows = gradients.GetLength(0);
+    int cols = gradients.GetLength(1);
+
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            double val = gradients[i, j];
+            if (Math.Abs(val) > clipValue)
+                gradients[i, j] = Math.Max(Math.Min(val, clipValue), -clipValue);
+        }
+    }
 }
+
 
 static void SaveAllWeights()
 {

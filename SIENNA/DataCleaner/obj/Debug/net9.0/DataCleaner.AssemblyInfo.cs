@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DataCleaner")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+21fb9e5b7fb0368d62f82399867e53279e39d5b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f04b0d1d296e856ec907a15a3c2e4b8bdbefa472")]
 [assembly: System.Reflection.AssemblyProductAttribute("DataCleaner")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DataCleaner")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
